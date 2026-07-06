@@ -1,5 +1,6 @@
 import numpy as np
 from pycbc.waveform import get_td_waveform
+from src.priors import GWParameters
 
 # ============================================================
 # SIMULATION CONFIGURATION
@@ -103,7 +104,7 @@ def crop_or_pad(signal, start, target_length):
 # MAIN WAVEFORM GENERATOR
 # ============================================================
 
-def generate_waveform(theta):
+def generate_waveform(theta: GWParameters) -> np.ndarray:
     """
    → This function:
    maps theta (physical parameters) → clean gravitational-wave strain
@@ -113,47 +114,54 @@ def generate_waveform(theta):
 
     Generate clean gravitational-wave strain.
 
-    Parameters
-    ----------
-    theta : dict
-        Dictionary containing:
-            m1
-            m2
-            chi1
-            chi2
-            distance
-            cos_iota (indicated as cos function in the project documentation)
+Parameters
+----------
+theta : GWParameters
+    One sampled set of gravitational-wave parameters.
 
-    Returns
-    -------
-    strain : np.ndarray
-        Fixed-length strain array of shape (N_SAMPLES,)
+    Attributes
+    ----------
+    m1 : float
+        Primary black hole mass (M☉)
+
+    m2 : float
+        Secondary black hole mass (M☉)
+
+    chi1 : float
+        Dimensionless aligned spin of the primary black hole
+
+    chi2 : float
+        Dimensionless aligned spin of the secondary black hole
+
+    distance : float
+        Luminosity distance (Mpc)
+
+    inclination : float
+        Inclination angle (radians)
+
+Returns
+-------
+strain : np.ndarray
+    Fixed-length strain array of shape (N_SAMPLES,)
     """
 
     # --------------------------------------------------------
     # Extract parameters
     # --------------------------------------------------------
 
-    m1 = theta["m1"]
-    m2 = theta["m2"]
+    m1 = theta.m1
+    m2 = theta.m2
     # Component masses of the binary black hole system
-    # The waveform’s frequency evolution is entirely determined by these parameters
 
-    chi1 = theta["chi1"]
-    chi2 = theta["chi2"]
-    # Spin parameters of the black holes
-    # Affect the phase evolution of the gravitational waveform
+    chi1 = theta.chi1
+    chi2 = theta.chi2
+    # Dimensionless aligned spins
 
-    distance = theta["distance"]
-    # Controls amplitude scaling (distance effect)
-    # As distance increases, the gravitational-wave signal becomes weaker
+    distance = theta.distance
+    # Luminosity distance (Mpc)
 
-    cos_iota = theta["cos_iota"]
-    # Cosine form of the inclination angle (indacted in the project documentation)
-    # Using a uniform prior in cos(iota) is a more physically meaningful choice
-    # because it corresponds to isotropic orientation in 3D space 
-    inclination = np.arccos(cos_iota)
-    # → PyCBC requires the angle in radians
+    inclination = theta.inclination
+    # Inclination angle (already sampled in priors.py)
 
     # --------------------------------------------------------
     # Enforce physical ordering (indicated in the project documentation)
