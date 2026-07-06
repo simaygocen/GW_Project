@@ -30,7 +30,25 @@ class GWParameters:
             f" Inclination (ι)        : {self.inclination:8.4f} rad\n"
             "====================================================="
         )
+    
+    def to_array(self):
+        """
+        Convert the parameter object into a NumPy array.
 
+        Returns
+        -------
+        np.ndarray
+            Shape (6,)
+        """
+
+        return np.array([
+            self.m1,
+            self.m2,
+            self.chi1,
+            self.chi2,
+            self.distance,
+            self.inclination,
+        ], dtype=np.float32)
 
 class PriorSampler:
     """
