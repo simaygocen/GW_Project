@@ -6,9 +6,10 @@ __pycache__/
 *.pyc
 
 # notebook
-.ipynb_checkpoints/
-
+# .ipynb_checkpoints/
 # generated datasets and trained models
-data/*.npy
-data/*.npz
-models/**/*.keras
+# data/*.npy
+# data/*.npz
+# models/**/*.keras
+
+.ds_store
