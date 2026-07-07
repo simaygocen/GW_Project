@@ -9,6 +9,7 @@ asttokens==3.0.1
 async-lru==2.3.0
 attrs==26.1.0
 babel==2.18.0
+bayesflow>=2.0.12,<3
 beautifulsoup4==4.15.0
 bleach==6.4.0
 certifi==2026.6.17
@@ -113,6 +114,7 @@ stack-data==0.6.3
 terminado==0.18.1
 tinycss2==1.5.1
 tornado==6.5.7
+torch>=2.3
 tqdm==4.68.3
 traitlets==5.15.1
 typing_extensions==4.15.0

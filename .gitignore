@@ -7,3 +7,8 @@ __pycache__/
 
 # notebook
 .ipynb_checkpoints/
+
+# generated datasets and trained models
+data/*.npy
+data/*.npz
+models/**/*.keras
