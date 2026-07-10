@@ -57,12 +57,14 @@ class DatasetGenerator:
         waveforms = np.array(waveforms, dtype=np.float32)
         parameters = np.array(parameters, dtype=np.float32)
 
-        np.save(self.output_dir / "waveforms.npy", waveforms)
-        np.save(self.output_dir / "parameters.npy", parameters)
-        np.savez(
-            self.output_dir / f"gw_dataset_{len(waveforms)}.npz",
-            X=waveforms,
-            theta=parameters,
+        np.save(
+            self.output_dir / f"waveforms_{self.n_samples}.npy",
+            waveforms
+        )
+
+        np.save(
+            self.output_dir / f"parameters_{self.n_samples}.npy",
+            parameters
         )
 
         print("\nDataset generation complete!")
