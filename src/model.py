@@ -141,6 +141,79 @@ def build_adapter() -> Any:
     )
 
 
+def build_summary_network(summary_dim: int = 16) -> Any:
+    """
+    Build a GPU-friendly convolutional encoder for long GW strain series.
+
+    The original recurrent ``TimeSeriesNetwork`` was prohibitively slow for
+    8192-sample inputs on a Colab T4. Four strided convolutions reduce the time
+    axis from 8192 to 32 before the dense projection, while preserving temporal
+    order through the flattened feature map.
+
+    The custom class is registered with Keras so checkpoints containing it can
+    be loaded in a later session. It is defined lazily to keep dataset-only
+    utilities usable without importing BayesFlow/Keras.
+    """
+
+    bf = _require_bayesflow()
+    import keras
+
+    @bf.utils.serialization.serializable("gw_project")
+    class FastGWConvSummary(bf.networks.SummaryNetwork):
+        """Compress ``(batch, 8192, 1)`` strain into summary statistics."""
+
+        def __init__(self, summary_dim: int = 16, **kwargs):
+            super().__init__(**kwargs)
+            self.summary_dim = summary_dim
+
+            self.encoder = keras.Sequential(
+                [
+                    keras.layers.Conv1D(
+                        16,
+                        kernel_size=16,
+                        strides=4,
+                        padding="same",
+                        activation="gelu",
+                    ),
+                    keras.layers.Conv1D(
+                        32,
+                        kernel_size=8,
+                        strides=4,
+                        padding="same",
+                        activation="gelu",
+                    ),
+                    keras.layers.Conv1D(
+                        64,
+                        kernel_size=8,
+                        strides=4,
+                        padding="same",
+                        activation="gelu",
+                    ),
+                    keras.layers.Conv1D(
+                        64,
+                        kernel_size=8,
+                        strides=4,
+                        padding="same",
+                        activation="gelu",
+                    ),
+                    keras.layers.Flatten(),
+                    keras.layers.Dense(64, activation="gelu"),
+                    keras.layers.Dense(summary_dim),
+                ],
+                name="fast_gw_conv_encoder",
+            )
+
+        def call(self, strain, training=False, **kwargs):
+            return self.encoder(strain, training=training)
+
+        def get_config(self):
+            config = super().get_config()
+            config.update({"summary_dim": self.summary_dim})
+            return config
+
+    return FastGWConvSummary(summary_dim=summary_dim)
+
+
 def build_workflow(model_dir: str | Path | None = None) -> Any:
     """
     Create a BayesFlow BasicWorkflow with a time-series summary network.
@@ -149,11 +222,7 @@ def build_workflow(model_dir: str | Path | None = None) -> Any:
     bf = _require_bayesflow()
 
     adapter = build_adapter()
-    summary_network = bf.networks.TimeSeriesNetwork(
-        kernel_sizes=2,
-        recurrent_dim=64,
-        skip_steps=1,
-    )
+    summary_network = build_summary_network(summary_dim=16)
     inference_network = bf.networks.CouplingFlow()
 
     checkpoint_filepath = None
