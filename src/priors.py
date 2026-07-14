@@ -59,7 +59,7 @@ class PriorSampler:
         self,
         mass_range=(10.0, 80.0),
         spin_range=(-0.99, 0.99),
-        distance_range=(100.0, 600.0),
+        distance_range=(100.0, 1000.0),
     ):
         self.mass_range = mass_range
         self.spin_range = spin_range
