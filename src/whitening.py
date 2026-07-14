@@ -15,7 +15,7 @@ class Whitening:
     def __init__(
         self,
         sampling_rate=2048,
-        duration=4.0,
+        duration=1.0,
         f_lower=20.0,
     ):
 
