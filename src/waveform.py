@@ -17,7 +17,7 @@ DELTA_T = 1.0 / SAMPLING_RATE
 # → Time step between consecutive samples (seconds)
 # → Required by PyCBC waveform generation to define the time resolution
 
-DURATION = 4.0  # seconds
+DURATION = 1.0  # seconds
 # → Duration of the waveform (seconds)
 # → ML for fixed-length input requirement
 
