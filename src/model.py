@@ -20,7 +20,7 @@ import numpy as np
 
 
 PARAMETER_NAMES = ("m1", "m2", "chi1", "chi2", "distance", "inclination")
-DEFAULT_DATASET_PATH = Path("data/gw_dataset_1000.npz")
+DEFAULT_DATASET_PATH = Path("data/gw_dataset_25000.npz")
 DEFAULT_MODEL_DIR = Path("models/bayesflow_model")
 
 
@@ -101,8 +101,13 @@ def load_npz_dataset(path: str | Path, max_samples: int | None = None) -> dict[s
 def split_dataset(
     dataset: dict[str, np.ndarray],
     validation_fraction: float = 0.1,
+    test_fraction: float = 0.1,
     seed: int = 2026,
-) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+) -> tuple[
+    dict[str, np.ndarray],
+    dict[str, np.ndarray],
+    dict[str, np.ndarray],
+]:
     """
     Shuffle and split a dataset into train and validation dictionaries.
     """
@@ -117,12 +122,17 @@ def split_dataset(
     rng = np.random.default_rng(seed)
     indices = rng.permutation(n_simulations)
     n_val = max(1, int(round(validation_fraction * n_simulations)))
+    n_test = max(1, int(round(test_fraction * n_simulations)))
+
     val_idx = indices[:n_val]
-    train_idx = indices[n_val:]
+    test_idx = indices[n_val:n_val + n_test]
+    train_idx = indices[n_val + n_test:]
 
     train_data = {key: value[train_idx] for key, value in dataset.items()}
     val_data = {key: value[val_idx] for key, value in dataset.items()}
-    return train_data, val_data
+    test_data = {key: value[test_idx] for key, value in dataset.items()}
+
+    return train_data, val_data, test_data
 
 
 def build_adapter() -> Any:
@@ -248,6 +258,7 @@ def train_workflow(
     epochs: int = 20,
     batch_size: int = 64,
     validation_fraction: float = 0.1,
+    test_fraction: float = 0.1,
     seed: int = 2026,
 ) -> tuple[Any, Any, dict[str, np.ndarray], dict[str, np.ndarray]]:
     """
@@ -255,7 +266,12 @@ def train_workflow(
     """
 
     dataset = load_npz_dataset(dataset_path, max_samples=max_samples)
-    train_data, val_data = split_dataset(dataset, validation_fraction=validation_fraction, seed=seed)
+    train_data, val_data, test_data = split_dataset(
+    dataset,
+    validation_fraction=validation_fraction,
+    test_fraction=test_fraction,
+    seed=seed,
+    )
 
     model_dir = Path(model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
@@ -268,7 +284,7 @@ def train_workflow(
         batch_size=batch_size,
     )
 
-    return workflow, history, train_data, val_data
+    return workflow, history, train_data, val_data, test_data
 
 
 def load_workflow(model_dir: str | Path = DEFAULT_MODEL_DIR) -> Any:
