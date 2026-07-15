@@ -1,12 +1,12 @@
-# tests/test_waveform.py
-
 import numpy as np
-import matplotlib.pyplot as plt
 
-from waveform import (
+from src.priors import GWParameters
+from src.waveform import (
+    F_CROSS,
+    F_PLUS,
     generate_waveform,
+    inclination_amplitude_scale,
     N_SAMPLES,
-    SAMPLING_RATE
 )
 
 
@@ -19,14 +19,14 @@ def test_waveform_generation():
     # Fixed test parameters
     # --------------------------------------------------------
 
-    theta = {
-        "m1": 40,
-        "m2": 30,
-        "chi1": 0.2,
-        "chi2": -0.1,
-        "distance": 400,
-        "cos_iota": 0.3
-    }
+    theta = GWParameters(
+        m1=40,
+        m2=30,
+        chi1=0.2,
+        chi2=-0.1,
+        distance=400,
+        inclination=np.arccos(0.3),
+    )
 
     # --------------------------------------------------------
     # Generate waveform
@@ -62,30 +62,20 @@ def test_waveform_generation():
     assert np.max(np.abs(strain)) > 0, \
         "Waveform is completely zero"
 
-    print("All waveform tests passed.")
+    assert np.isfinite([F_PLUS, F_CROSS]).all()
 
-    # --------------------------------------------------------
-    # Visualization
-    # --------------------------------------------------------
-    # Normalize ONLY for plotting
 
-    plot_strain = strain / np.max(np.abs(strain))
+def test_inclination_amplitude_symmetry():
+    """The single-detector amplitude is symmetric for iota and pi-iota."""
 
-    time = np.arange(N_SAMPLES) / SAMPLING_RATE
-
-    plt.figure(figsize=(12, 4))
-
-    plt.plot(time, plot_strain)
-
-    plt.title("Test Gravitational Waveform")
-
-    plt.xlabel("Time [s]")
-    plt.ylabel("Normalized strain")
-
-    plt.tight_layout()
-
-    plt.show()
+    inclination = 0.7
+    assert np.isclose(
+        inclination_amplitude_scale(inclination),
+        inclination_amplitude_scale(np.pi - inclination),
+    )
 
 
 if __name__ == "__main__":
     test_waveform_generation()
+    test_inclination_amplitude_symmetry()
+    print("All waveform tests passed.")

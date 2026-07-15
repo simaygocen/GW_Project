@@ -7,9 +7,10 @@ __pycache__/
 
 # notebook
 # .ipynb_checkpoints/
-# generated datasets and trained models
-# data/*.npy
-# data/*.npz
-# models/**/*.keras
+# generated datasets (kept in Drive, not Git)
+data/*.npy
+data/gw_dataset_*.npz
 
-.ds_store
+# local system files
+.DS_Store
+models/.DS_Store

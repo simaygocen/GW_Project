@@ -1,4 +1,5 @@
 import numpy as np
+from pycbc.detector import Detector
 from pycbc.waveform import get_td_waveform
 from src.priors import GWParameters
 
@@ -40,11 +41,38 @@ APPROXIMANT = "IMRPhenomD"
 # FIXED DETECTOR RESPONSE
 # ============================================================
 
-F_PLUS = 0.8
-F_CROSS = 0.6
-# Single detector simplification
-# Keep fixed across all simulations
-# simulation choice (engineering decision) 
+DETECTOR_NAME = "H1"
+RIGHT_ASCENSION = 1.0  # radians
+DECLINATION = 0.5  # radians
+POLARIZATION = 0.3  # radians
+GPS_TIME = 1126259462.4
+
+# The sky position, polarization and time are fixed for every simulation, as
+# required by the project setup. The response factors are calculated once from
+# the Hanford detector geometry instead of being chosen by hand.
+_DETECTOR = Detector(DETECTOR_NAME)
+F_PLUS, F_CROSS = _DETECTOR.antenna_pattern(
+    RIGHT_ASCENSION,
+    DECLINATION,
+    POLARIZATION,
+    GPS_TIME,
+)
+
+
+def inclination_amplitude_scale(inclination):
+    """Return the detector amplitude factor associated with inclination.
+
+    This quantity makes the distance--inclination degeneracy explicit: the
+    observed amplitude is approximately proportional to this scale divided by
+    luminosity distance. It is also symmetric under iota -> pi - iota.
+    """
+
+    cos_iota = np.cos(inclination)
+    plus_factor = 0.5 * (1.0 + cos_iota**2)
+    cross_factor = cos_iota
+    return np.sqrt(
+        (F_PLUS * plus_factor) ** 2 + (F_CROSS * cross_factor) ** 2
+    )
 
 # ============================================================
 # HELPER: FIXED-LENGTH WINDOW EXTRACTION
@@ -198,7 +226,7 @@ strain : np.ndarray
 
 
     # Convert to numpy
-    strain = np.array(strain)
+    strain = strain.numpy()
      # → PyCBC time series → numpy array (ML friendly)
 
     # --------------------------------------------------------

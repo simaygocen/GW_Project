@@ -21,7 +21,7 @@ import numpy as np
 
 PARAMETER_NAMES = ("m1", "m2", "chi1", "chi2", "distance", "inclination")
 DEFAULT_DATASET_PATH = Path("data/gw_dataset_25000.npz")
-DEFAULT_MODEL_DIR = Path("models/bayesflow_model")
+DEFAULT_MODEL_DIR = Path("models/bayesflow_model_25000")
 
 
 def _require_bayesflow():
@@ -101,13 +101,8 @@ def load_npz_dataset(path: str | Path, max_samples: int | None = None) -> dict[s
 def split_dataset(
     dataset: dict[str, np.ndarray],
     validation_fraction: float = 0.1,
-    test_fraction: float = 0.1,
     seed: int = 2026,
-) -> tuple[
-    dict[str, np.ndarray],
-    dict[str, np.ndarray],
-    dict[str, np.ndarray],
-]:
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
     """
     Shuffle and split a dataset into train and validation dictionaries.
     """
@@ -122,16 +117,53 @@ def split_dataset(
     rng = np.random.default_rng(seed)
     indices = rng.permutation(n_simulations)
     n_val = max(1, int(round(validation_fraction * n_simulations)))
-    n_test = max(1, int(round(test_fraction * n_simulations)))
-
     val_idx = indices[:n_val]
-    test_idx = indices[n_val:n_val + n_test]
-    train_idx = indices[n_val + n_test:]
+    train_idx = indices[n_val:]
+
+    train_data = {key: value[train_idx] for key, value in dataset.items()}
+    val_data = {key: value[val_idx] for key, value in dataset.items()}
+    return train_data, val_data
+
+
+def split_dataset_three_way(
+    dataset: dict[str, np.ndarray],
+    validation_fraction: float = 0.1,
+    test_fraction: float = 0.1,
+    seed: int = 2026,
+) -> tuple[
+    dict[str, np.ndarray],
+    dict[str, np.ndarray],
+    dict[str, np.ndarray],
+]:
+    """Shuffle and split data into independent train, validation, and test sets.
+
+    Validation data is used while fitting the network. Test data is held back
+    for the final posterior diagnostics and is never passed to ``fit_offline``.
+    """
+
+    if not 0.0 < validation_fraction < 0.5:
+        raise ValueError("validation_fraction must be between 0 and 0.5")
+    if not 0.0 < test_fraction < 0.5:
+        raise ValueError("test_fraction must be between 0 and 0.5")
+    if validation_fraction + test_fraction >= 1.0:
+        raise ValueError("validation_fraction and test_fraction must sum to less than 1")
+
+    n_simulations = dataset["parameters"].shape[0]
+    if n_simulations < 20:
+        raise ValueError("Need at least 20 simulations for a three-way split")
+
+    rng = np.random.default_rng(seed)
+    indices = rng.permutation(n_simulations)
+    n_test = max(1, int(round(test_fraction * n_simulations)))
+    n_val = max(1, int(round(validation_fraction * n_simulations)))
+
+    test_idx = indices[:n_test]
+    val_idx = indices[n_test : n_test + n_val]
+    train_idx = indices[n_test + n_val :]
 
     train_data = {key: value[train_idx] for key, value in dataset.items()}
     val_data = {key: value[val_idx] for key, value in dataset.items()}
     test_data = {key: value[test_idx] for key, value in dataset.items()}
-
     return train_data, val_data, test_data
 
 
@@ -155,10 +187,10 @@ def build_summary_network(summary_dim: int = 16) -> Any:
     """
     Build a GPU-friendly convolutional encoder for long GW strain series.
 
-    The original recurrent ``TimeSeriesNetwork`` was prohibitively slow for
-    8192-sample inputs on a Colab T4. Four strided convolutions reduce the time
-    axis from 8192 to 32 before the dense projection, while preserving temporal
-    order through the flattened feature map.
+    The original recurrent ``TimeSeriesNetwork`` was prohibitively slow on a
+    Colab T4. Four strided convolutions reduce the time axis before the dense
+    projection while preserving temporal order through the flattened feature
+    map.
 
     The custom class is registered with Keras so checkpoints containing it can
     be loaded in a later session. It is defined lazily to keep dataset-only
@@ -170,7 +202,7 @@ def build_summary_network(summary_dim: int = 16) -> Any:
 
     @bf.utils.serialization.serializable("gw_project")
     class FastGWConvSummary(bf.networks.SummaryNetwork):
-        """Compress ``(batch, 8192, 1)`` strain into summary statistics."""
+        """Compress a batch of strain time series into summary statistics."""
 
         def __init__(self, summary_dim: int = 16, **kwargs):
             super().__init__(**kwargs)
@@ -258,7 +290,6 @@ def train_workflow(
     epochs: int = 20,
     batch_size: int = 64,
     validation_fraction: float = 0.1,
-    test_fraction: float = 0.1,
     seed: int = 2026,
 ) -> tuple[Any, Any, dict[str, np.ndarray], dict[str, np.ndarray]]:
     """
@@ -266,11 +297,8 @@ def train_workflow(
     """
 
     dataset = load_npz_dataset(dataset_path, max_samples=max_samples)
-    train_data, val_data, test_data = split_dataset(
-    dataset,
-    validation_fraction=validation_fraction,
-    test_fraction=test_fraction,
-    seed=seed,
+    train_data, val_data = split_dataset(
+        dataset, validation_fraction=validation_fraction, seed=seed
     )
 
     model_dir = Path(model_dir)
@@ -284,7 +312,7 @@ def train_workflow(
         batch_size=batch_size,
     )
 
-    return workflow, history, train_data, val_data, test_data
+    return workflow, history, train_data, val_data
 
 
 def load_workflow(model_dir: str | Path = DEFAULT_MODEL_DIR) -> Any:
