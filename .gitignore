@@ -14,3 +14,6 @@ data/gw_dataset_*.npz
 # local system files
 .DS_Store
 models/.DS_Store
+
+# final checkpoint is shared through Google Drive
+models/bayesflow_model_25000/
